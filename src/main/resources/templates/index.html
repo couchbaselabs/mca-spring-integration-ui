@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>App Simulator</title>
+    <script src="js/app.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous"/>
+    <link crossorigin="anonymous" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/solid.min.css"
+          rel="stylesheet"/>
+    <script src="https://kit.fontawesome.com/74e9ad2b27.js" crossorigin="anonymous"></script>
+
+</head>
+<body>
+    <div class="container-fluid">
+        <nav class="navbar navbar-dark bg-primary">
+            <a class="navbar-brand" href="#">
+                <img src="images/cb_logo_bug_white.svg" width="30" height="30" class="d-inline-block align-top" alt="">
+                Multi Cluster Aware Client
+            </a>
+        </nav>
+
+        <div>
+            <nav class="navbar navbar-dark bg-light">
+                <h2>Application Simulator</h2>
+                <a id="start-button" class="btn btn-outline-dark" href="#" role="button" onclick="startAppSimulation()">Start <i class="fas fa-play"></i></a>
+                <a id="stop-button" hidden="true" class="btn btn-outline-dark" href="#" role="button" onclick="stopAppSimulation()">Stop <i class="fas fa-stop"></i></a>
+            </nav>
+            <div id="display" class="row justify-content-center">
+                <div id="cluster-info" class="col d-flex justify-content-center">
+                </div>
+            </div>
+            <div id="results">
+                <table id="table" class="table">
+                    <thead class="thead-dark">
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Operation</th>
+                        <th scope="col">Cluster Name</th>
+                        <th scope="col">Latency (ms)</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">Result</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
