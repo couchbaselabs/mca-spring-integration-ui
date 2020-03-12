@@ -1,2 +1,359 @@
-# mca-spring-integration-ui
-MCA Java integration with Spring and an emulator app UI
+![couchbase noequal](docs/assets/couchbase_noequal.png)
+
+# ![logo](docs/assets/couchbase_logo.png) Multi Cluster Awareness Java SDK and Springboot Integration
+
+
+# Scope
+
+# Content
+
+0. [0. Pre-requisites](#0.)
+1. [1. Quick Start](#1.)
+2. [2. Couchbase MultiCluster Awareness SDK](#2.)
+3. [3. Springboot Integration](#3.)
+4. [4. Application Simulator UI](#4.)
+5. [5. Failure vs Failover](#5.)
+6. [6. Build and run](#6.)
+6. [7. Test Failure Scenarios](#7.)
+
+## 0. Pre-Requesites
+
+* [Setup Couchbase Server Cluster](docs/couchbase-setup.md)
+	* Create a demo bucket with a `user`/`password` user privileges.
+
+![overview](docs/assets/overview.png)
+	
+	
+* Install [Maven](https://maven.apache.org/)
+
+* Latest Couchbase MCA Java SDK (currectly version 1.25)
+
+```
+    <repositories>
+        <repository>
+            <id>cb-ee</id>
+            <name>Couchbase EE Repo</name>
+            <url>https://subscription.couchbase.com/maven2</url>
+        </repository>
+    </repositories>
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.couchbase.client</groupId>
+            <artifactId>multi-cluster-java</artifactId>
+            <version>1.2.5</version>
+           <exclusions>
+                <exclusion>
+                    <groupId>com.couchbase.client</groupId>
+                    <artifactId>java-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        
+        ...
+        
+    </dependencies>  
+```
+
+	
+* Couchbase Java Client SDK 2.x (+2.13 version)
+
+``` 
+        <dependency>
+            <groupId>com.couchbase.client</groupId>
+            <artifactId>java-client</artifactId>
+            <version>2.7.13</version>
+        </dependency> 
+```
+
+* Springboot libraries (2.2.2.RELEASE)
+
+```
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.2.2.RELEASE</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+```
+
+* Couchbase Reactive Spring data 
+
+``` 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-couchbase-reactive</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.couchbase.client</groupId>
+                    <artifactId>java-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+```
+	
+
+## 1. Quick Start
+
+* Setup your connection clusters bootstrap:
+
+*application.properties*
+
+```
+# Configure your Cluster bootstrap nodes 
+## List of nodes comma separated. At least (replica number + 1) nodes here 
+mca.couchbase.bootstrap-hosts=MyClusterA;10.0.0.1,10.0.0.2 MyClusterB;10.0.1.1,10.0.1.2
+
+# default bucket
+mca.couchbase.bucket.name=demo
+mca.couchbase.username=user
+mca.couchbase.password=password
+
+...
+
+```
+
+* **Start the application**
+
+```
+mvn spring-boot:run
+```
+
+![run app](docs/assets/run.png)
+
+
+Open [http://localhost:8080](http://localhost:8080) in your favorite browser and start the app simulator for emulate writing/reading/querying operations using MCA SDK. It will attempt to connect to the first cluster given into the cluster list. 
+
+![App simulator](docs/assets/app-simulator.png)
+
+
+
+## 2. Couchbase MultiCluster Awareness SDK
+
+As an advanced NoSQL Database, Couchbase has built in features for replication across multiple data centers. In these kinds of deployments, it is most common for application servers to be co-located with each cluster. This way the SDK can work with a given cluster to handle topology changes, failures, etc.
+
+However, there is also a need in some deployments to have an application server work in conjunction with multiple clusters which are using Couchbase’s built in XDCR replication. In these deployments there is a careful alignment of cluster replication behavior to application behavior and application failover behavior.
+
+This library exists for those circumstances.
+
+### 2.1. NodeHealthFailureDetector
+As the name implies, this failure detector looks at the health and state of one or more nodes in the cluster and determines failure signaling based off of that.
+
+The way it works internally is that it listens on the Java SDKs EventBus for NodeDisconnected events and if found signals failure to the Coordinator. There is one complication it needs to account for though, and that is "rebalance out". If a node is properly removed from the cluster, operations are not directly impacted and as a result would trigger a false positive. To make sure this doesn’t happen, the failure detector continuously checks the bucket config if a rebalance is in progress (or has been recently) and if so a node disconnected event is ignored.
+
+It can be configured with the following options:
+
+| Option	| Default	| Description |
+| :-- | :-- | :-- |
+| configCheckInterval | 5000 | The interval when the config is checked for ongoing rebalance.
+| rebalanceOutGracePeriod | 15000 | The period after a rebalance when node removals are still ignored.
+| minFailedNodes | 1 | The distinct number of nodes that need to fail before failure is signaled.
+
+
+### 2.2. Composing Failure Detectors
+Both the ConjunctionFailureDetector and DisjunctionFailureDetector can be used to compose more than one FailureDetector together. When their factories are configured, just pass in N failure detectors and they will be combined in two different ways:
+
+* **DisjunctionFailureDetector**: Allows to combine more than one failure detector in a way to signal failure if at least one of the inner detectors signals failure.
+
+* **ConjunctionFailureDetector**: Allows to combine more than one failure detector in a way to signal failure if all of the inner detectors signal failure.
+
+You can think of them as either AND or OR combinations. They themselves can also be nested if necessary.
+
+
+## 3. Springboot Integration
+
+This project demostrates the integration of the Java MCA library with spring / spring boot.
+
+The "glue" code is found under the internal package, but the rest under the main com.couchbase.spring.mca is just application level code that can be customized.
+
+![package](docs/assets/package.png)
+
+The code demos how to use both the template and the repository to perform operations which are backed by the underlying MCA library. Coordinator and failure detector can (and should) be customized in the MultiClusterDatabaseConfiguration class.
+
+
+```
+@Configuration
+public class MultiClusterDatabaseConfiguration extends AbstractMultiClusterConfiguration {
+
+    @Value("${mca.couchbase.bootstrap-hosts}")
+    private String bootstrap;
+    @Value("${mca.couchbase.username:Administrator}")
+    private String userName;
+    @Value("${mca.couchbase.bucket.name:demo}")
+    private String bucketName;
+    @Value("${mca.couchbase.password:password}")
+    private String userPass;
+    @Value("${mca.couchbase.minFailureNodes:1}")
+    private int minFailureNodes;
+
+    @Bean
+    @Override
+    public String bucketName() {
+       return bucketName;
+    }
+
+    @Bean
+    @Override
+    public String userName() {
+        return userName;
+    }
+
+    @Bean
+    @Override
+    public String userPass() {
+       return userPass;
+    }
+
+
+    private ClusterSpec from(String clusterSpec) {
+        String []values = clusterSpec.split(";");
+        return ClusterSpec.create(Stream.of(values[1].split(",")).collect(toSet()),values[0]);
+    }
+
+
+    public List<ClusterSpec> clustersList() {
+        return Stream.of(bootstrap.split(" ")).map(this::from).collect(Collectors.toList());
+    }
+
+
+    @Bean
+    @Override
+    public Coordinator coordinator() {
+        return Coordinators.isolated(new IsolatedCoordinator.Options()
+                .clusterSpecs(clustersList())
+                .activeEntries(1)
+                .failoverNumNodes(this.minFailureNodes)
+                .serviceTypes(new HashSet<>(Arrays.asList(ServiceType.BINARY, ServiceType.QUERY)))
+        );
+
+    }
+
+    @Bean
+    public FailureDetectorFactory<? extends FailureDetector> failureDetectorFactory() {
+        return FailureDetectors.nodeHealth(coordinator(), NodeHealthFailureDetector.options().minFailedNodes(this.minFailureNodes)); 
+    }
+
+
+}
+```
+
+
+## 4. Failover vs Failure 
+
+-- TBD --
+
+
+
+## 5. Sample Test Failure Scenarios
+
+
+### 5.1. Sample Architecture Overview
+
+
+![overview](docs/assets/overview.png)
+
+**Cluster A** with `demo` bucket `replica 1`
+
+|Node|Services|
+|:--|:--|
+| 10.0.0.1 | Query, Index |
+| 10.0.0.2 | Query, Index |
+| 10.0.0.3 | Data |
+| 10.0.0.4 | Data |
+| 10.0.0.5 | Data |
+
+**Cluster B** with `demo` bucket `replica 1`
+
+|Node|Services|
+|:--|:--|
+| 10.0.1.1 | Query, Index |
+| 10.0.1.2 | Query, Index |
+| 10.0.1.3 | Data |
+| 10.0.1.4 | Data |
+| 10.0.1.5 | Data |
+
+
+
+### 5.2. Test Cases
+
+#### Disabled Auto-failover Test Cases
+
+| Cluster Scenario | Data Nodes Status | Query Service Status | desired mca action |
+|:--|:--|:--|:--|
+| All nodes UP & Running  | Running | Running | Health Cluster - stay same cluster - no changes |
+| 1 data node failure |  Down | Down *cannot provide data* | **switch** to another healthy cluster |
+| 1 Query node failure | Running | Running | Increase failure Counter, stay same cluster |
+| 1 Query node down and 1 Data Node failure | Down | Down | **switch** to another healthy cluster |
+| 2 Query nodes down | Running | Down | **switch** to another healthy cluster |
+ 
+* **One** failure in **data** service nodes triggers the switchover to another cluster.
+* **Two** failures in **query** service nodes triggers the switchover to another cluster.
+
+ 
+#### Enabled Auto-failover Test Cases
+
+| Cluster Scenario | Data Nodes Status | Query Service Status | desired mca action |
+|:--|:--|:--|:--|
+| All nodes UP & Running  | Running | Running | Health Cluster - stay same cluster - no changes |
+| 1 data node **failover** | Running | Running | **Autofailover** scenario - stay same cluster |
+| 1 data node **failover** and 1 data node **failure** | Down | Down | **switchover** to another cluster |
+| 1 Query nodes failure | Running | Running | Increase Query failure Counter, stay same cluster |
+| 2 Query nodes down | Running | Down | **switchover** to another healthy cluster |
+| 1 Query node failure and 1 data node **failover** | Running | Running | Data autofailover, increases Query failure Counter, stay same cluster |
+ 
+* First data failure is considered as **Auto-failover** and doesn't increase the failures counters
+* **One** failure in **data** service nodes triggers the switchover to another cluster.
+* **Two** failures in **query** service nodes triggers the switchover to another cluster.
+
+
+
+### 5.3. NodeHealthFailureDetector Configuration
+
+
+*application.properties*
+
+```
+...
+
+
+mca.couchbase.minFailureNodes=1
+
+...
+
+```
+
+```
+@Configuration
+public class MultiClusterDatabaseConfiguration extends AbstractMultiClusterConfiguration {
+    ... 
+     
+    @Bean
+    public FailureDetectorFactory<? extends FailureDetector> failureDetectorFactory() {
+        return FailureDetectors.nodeHealth(coordinator(), NodeHealthFailureDetector.options().minFailedNodes(this.minFailureNodes));
+    }
+
+```
+
+
+
+
+# Appendix
+
+Template for failures tests scenarios:
+
+**Cluster Configuration**
+
+|Node|Services|
+|:--|:--|
+| | |
+| | |
+| | |
+| | |
+| | |
+
+**Clusters Events**
+
+| # | Timestamp | Event | Node | Expected Action | Observed Action |MCA Reaction Timestamp |   
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| | | | | | | | | 
+

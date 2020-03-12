@@ -4,6 +4,7 @@ let counter = 0;
 var runningApp;
 var runningRead;
 var runningWrite;
+var runningQuery;
 
 
 async function emulateRead() {
@@ -32,6 +33,13 @@ async function emulateWrite() {
     insert_row(counter, data);
 }
 
+async function emulateQuery() {
+    let response = await fetch('/simulator/airports/');
+    let item = await response.json();
+
+    insert_row(counter, item);
+}
+
 function setSimulationStatusRunning(status) {
     let startButton = document.getElementById("start-button");
     let stopButton = document.getElementById("stop-button");
@@ -51,8 +59,10 @@ function emulateApp() {
     counter += 1;
     let offsetRead = Math.floor(Math.random() * offset);
     let offsetWrite = Math.floor(Math.random() * offset);
+    let offsetQuery = Math.floor(Math.random() * offset);
     runningRead = setTimeout(emulateRead, offsetRead);
     runningWrite = setTimeout(emulateWrite, offsetWrite);
+    runningQuery = setTimeout(emulateQuery, offsetQuery);
 }
 
 function insert_row(nrow, item) {
@@ -73,7 +83,8 @@ function insert_row_values(nrow, operation, clustername, latency, value,success)
     z.innerHTML=operation;
     a.innerHTML=clustername;
     b.innerHTML=latency;
-    c.innerHTML=JSON.stringify(value);
+    var valStr = JSON.stringify(value);
+    c.innerHTML= (valStr.length >90) ? valStr.substr(0,90)+"...": valStr;
     d.innerHTML=success === 'SUCCESS' ? "<span class=\"alert alert-success\">Sucess </span>" :
                           "<span class=\"alert alert-danger\">Failure </span>";
 
@@ -97,4 +108,5 @@ function stopAppSimulation() {
     clearInterval(runningApp);
     clearTimeout(runningRead);
     clearTimeout(runningWrite);
+    clearTimeout(runningQuery);
 }

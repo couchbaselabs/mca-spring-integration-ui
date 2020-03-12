@@ -15,6 +15,8 @@ import com.couchbase.client.mc.detection.FailureDetectorFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.couchbase.config.CouchbaseConfigurationSupport;
 import org.springframework.data.couchbase.core.CouchbaseTemplate;
+import org.springframework.data.couchbase.core.convert.MappingCouchbaseConverter;
+import org.springframework.data.couchbase.core.convert.translation.TranslationService;
 import org.springframework.data.couchbase.repository.config.RepositoryOperationsMapping;
 
 import java.util.List;
@@ -42,12 +44,11 @@ public abstract class AbstractMultiClusterConfiguration extends CouchbaseConfigu
     }
 
     @Bean
-    public MultiClusterClient multiClusterClient() {
-        MultiClusterClient client = new MultiClusterClient(coordinator(), failureDetectorFactory(), couchbaseEnvironment());
-        client.authenticate(userName(), userPass());
+    public MultiClusterClient multiClusterClient(Coordinator coordinator,FailureDetectorFactory<? extends FailureDetector> failureDetectorFactory, CouchbaseEnvironment couchbaseEnvironment, String userName, String userPass) {
+        MultiClusterClient client = new MultiClusterClient(coordinator, failureDetectorFactory, couchbaseEnvironment);
+        client.authenticate(userName, userPass);
         return client;
     }
-
 
     @Bean
     public SimpleTopologyAdmin topologyAdmin(Coordinator coordinator) {
@@ -56,8 +57,8 @@ public abstract class AbstractMultiClusterConfiguration extends CouchbaseConfigu
 
 
     @Bean
-    public Bucket multiClusterBucket() {
-        return new SpringMcaBucket(multiClusterClient(), bucketName(), couchbaseEnvironment());
+    public Bucket multiClusterBucket(MultiClusterClient multiClusterClient, String bucketName, CouchbaseEnvironment couchbaseEnvironment) {
+        return new SpringMcaBucket(multiClusterClient, bucketName, couchbaseEnvironment);
     }
 
     @Bean
@@ -86,12 +87,12 @@ public abstract class AbstractMultiClusterConfiguration extends CouchbaseConfigu
     }
 
     @Bean
-    public CouchbaseTemplate couchbaseTemplate() throws Exception {
+    public CouchbaseTemplate couchbaseTemplate(ClusterInfo clusterInfo, Bucket multiClusterBucket, MappingCouchbaseConverter mappingCouchbaseConverter, TranslationService translationService) throws Exception {
         return new CouchbaseTemplate(
-                clusterInfo(),
-                multiClusterBucket(),
-                mappingCouchbaseConverter(),
-                translationService()
+                clusterInfo,
+                multiClusterBucket,
+                mappingCouchbaseConverter,
+                translationService
         );
     }
 

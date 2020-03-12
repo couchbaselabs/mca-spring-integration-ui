@@ -20,7 +20,8 @@ public class SimulatorResponse<T> {
 
     enum Operation {
         WRITE,
-        READ
+        READ,
+        QUERY
     }
 
     enum Status {

@@ -5,10 +5,7 @@ import com.couchbase.client.mc.ClusterSpec;
 import com.couchbase.client.mc.coordination.Coordinator;
 import com.couchbase.client.mc.coordination.Coordinators;
 import com.couchbase.client.mc.coordination.IsolatedCoordinator;
-import com.couchbase.client.mc.detection.FailureDetector;
-import com.couchbase.client.mc.detection.FailureDetectorFactory;
-import com.couchbase.client.mc.detection.FailureDetectors;
-import com.couchbase.client.mc.detection.NodeHealthFailureDetector;
+import com.couchbase.client.mc.detection.*;
 import com.couchbase.mca.integration.AbstractMultiClusterConfiguration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +28,8 @@ public class MultiClusterDatabaseConfiguration extends AbstractMultiClusterConfi
     private String bucketName;
     @Value("${mca.couchbase.password:password}")
     private String userPass;
+    @Value("${mca.couchbase.minFailureNodes:1}")
+    private int minFailureNodes;
 
     @Bean
     @Override
@@ -68,7 +67,7 @@ public class MultiClusterDatabaseConfiguration extends AbstractMultiClusterConfi
         return Coordinators.isolated(new IsolatedCoordinator.Options()
                 .clusterSpecs(clustersList())
                 .activeEntries(1)
-                .failoverNumNodes(1)
+                .failoverNumNodes(this.minFailureNodes)
                 .serviceTypes(new HashSet<>(Arrays.asList(ServiceType.BINARY, ServiceType.QUERY)))
         );
 
@@ -76,7 +75,8 @@ public class MultiClusterDatabaseConfiguration extends AbstractMultiClusterConfi
 
     @Bean
     public FailureDetectorFactory<? extends FailureDetector> failureDetectorFactory() {
-        return FailureDetectors.nodeHealth(coordinator(), NodeHealthFailureDetector.options().minFailedNodes(1));
+        return FailureDetectors.nodeHealth(coordinator(), NodeHealthFailureDetector.options().minFailedNodes(this.minFailureNodes));
+        // return new NodeHealthFailureDetectorFactoryST(coordinator(), NodeHealthFailureDetectorST.options().minFailedNodes(this.minFailureNodes));
     }
 
 

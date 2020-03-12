@@ -24,6 +24,6 @@ import org.springframework.stereotype.Repository;
 public interface AirportRepository extends CouchbaseRepository<Airport, String> {
 
   @Override
-  @Query("#{#n1ql.selectEntity} where type = \"airport\"")
+  @Query("#{#n1ql.selectEntity} where `_class`= \"com.couchbase.mca.airport.Airport\"")
   Iterable<Airport> findAll();
 }

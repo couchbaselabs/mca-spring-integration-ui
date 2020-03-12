@@ -29,4 +29,11 @@ public class SimulatorController {
        // LOGGER.info("Saving...");
         return ResponseEntity.ok(service.save(airport));
     }
+
+    @GetMapping("airports")
+    public ResponseEntity<SimulatorResponse<Iterable<Airport>>> getAll() {
+        // LOGGER.info("Querying...");
+        return ResponseEntity.ok(service.getAll());
+    }
+
 }
