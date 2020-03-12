@@ -9,9 +9,7 @@
 
 0. [0. Pre-requisites](#0.)
 1. [1. Quick Start](#1.)
-2. [2. Couchbase MultiCluster Awareness SDK](#2.)
-3. [3. Springboot Integration](#3.)
-4. [4. Application Simulator UI](#4.)
+3. [2. Springboot Integration](#3.)
 5. [5. Failure vs Failover](#5.)
 6. [6. Build and run](#6.)
 6. [7. Test Failure Scenarios](#7.)
@@ -134,30 +132,7 @@ As an advanced NoSQL Database, Couchbase has built in features for replication a
 
 However, there is also a need in some deployments to have an application server work in conjunction with multiple clusters which are using Couchbase’s built in XDCR replication. In these deployments there is a careful alignment of cluster replication behavior to application behavior and application failover behavior.
 
-This library exists for those circumstances.
-
-### 2.1. NodeHealthFailureDetector
-As the name implies, this failure detector looks at the health and state of one or more nodes in the cluster and determines failure signaling based off of that.
-
-The way it works internally is that it listens on the Java SDKs EventBus for NodeDisconnected events and if found signals failure to the Coordinator. There is one complication it needs to account for though, and that is "rebalance out". If a node is properly removed from the cluster, operations are not directly impacted and as a result would trigger a false positive. To make sure this doesn’t happen, the failure detector continuously checks the bucket config if a rebalance is in progress (or has been recently) and if so a node disconnected event is ignored.
-
-It can be configured with the following options:
-
-| Option	| Default	| Description |
-| :-- | :-- | :-- |
-| configCheckInterval | 5000 | The interval when the config is checked for ongoing rebalance.
-| rebalanceOutGracePeriod | 15000 | The period after a rebalance when node removals are still ignored.
-| minFailedNodes | 1 | The distinct number of nodes that need to fail before failure is signaled.
-
-
-### 2.2. Composing Failure Detectors
-Both the ConjunctionFailureDetector and DisjunctionFailureDetector can be used to compose more than one FailureDetector together. When their factories are configured, just pass in N failure detectors and they will be combined in two different ways:
-
-* **DisjunctionFailureDetector**: Allows to combine more than one failure detector in a way to signal failure if at least one of the inner detectors signals failure.
-
-* **ConjunctionFailureDetector**: Allows to combine more than one failure detector in a way to signal failure if all of the inner detectors signal failure.
-
-You can think of them as either AND or OR combinations. They themselves can also be nested if necessary.
+This library exists for those circumstances. 
 
 
 ## 3. Springboot Integration
